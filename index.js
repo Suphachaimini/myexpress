@@ -1,4 +1,5 @@
 // index.js
+require('dotenv').config();
 const express = require('express');
 const line = require('@line/bot-sdk');
 
@@ -32,7 +33,11 @@ function handleEvent(event) {
 }
 
 const client = new line.Client(config);
-const PORT = process.env.PORT || 3000;
+app.get('/', (req, res) => {
+  res.send('hello world, Suphachai');
+});
+
+const PORT = process.env.PORT || 3010;
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
