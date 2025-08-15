@@ -7,9 +7,10 @@ const app = express();
 
 // ตั้งค่าจาก LINE Developers Console
 const config = {
-  channelAccessToken: '9PQxW+fjwpOQWywb8zrR8evepnPi+wayFaT/Ja5gyC4FN199lSnwD/lpTg9g02K6f4G9c3GbBcZJ8mjFG5v38SNBOoODUvsjWMoxwcy7Zq64itBaC8HeC2sy61SnIanjUMq0sHfnor7jhM6WgLrqCAdB04t89/1O/w1cDnyilFU=',
-  channelSecret: '37733cd075b89e7e4ce59c67ea11628e'
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || "",
+  channelSecret: process.env.LINE_CHANNEL_SECRET || ""
 };
+
 
 app.use('/webhook', line.middleware(config));
 
