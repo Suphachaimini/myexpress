@@ -29,7 +29,7 @@ function handleEvent(event) {
 
   return client.replyMessage(event.replyToken, {
     type: 'text',
-    text: `คุณพิมพ์ว่า: ${event.message.text}`
+    text: `แม่มึงบอกกูว่า: ${event.message.text}`
   });
 }
 
