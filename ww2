@@ -1,0 +1,97 @@
+// index.js (ฉบับอัปเกรด Gemini)
+require('dotenv').config();
+const express = require('express');
+const line = require('@line/bot-sdk');
+const { createClient } = require("@supabase/supabase-js");
+const { GoogleGenerativeAI } = require('@google/generative-ai'); // 1. เพิ่มการ import Gemini
+
+const app = express();
+
+// --- การตั้งค่าทั้งหมด ---
+
+// Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
+
+// LINE
+const config = {
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || "",
+  channelSecret: process.env.LINE_CHANNEL_SECRET || ""
+};
+const client = new line.Client(config);
+
+// Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY); // 2. ตั้งค่า Gemini Client
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+// --- Middleware และ Routes ---
+app.use('/webhook', line.middleware(config));
+
+app.post('/webhook', (req, res) => {
+  Promise
+    .all(req.body.events.map(handleEvent))
+    .then(result => res.json(result))
+    .catch(err => {
+      console.error(err);
+      res.status(500).end();
+    });
+});
+
+// 3. เปลี่ยน handleEvent ให้เป็น async function เพื่อรอคำตอบจาก Gemini
+async function handleEvent(event) {
+  if (event.type !== 'message' || event.message.type !== 'text') {
+    return Promise.resolve(null);
+  }
+
+  const userMessage = event.message.text;
+
+  try {
+    // 4. ส่วนสำคัญ: เรียกใช้ Gemini เพื่อสร้างคำตอบ
+    const prompt = `คุณคือ AI ผู้ช่วยที่เป็นมิตรและมีไหวพริบ จงตอบกลับข้อความนี้ตรงๆ: "${userMessage}"`;
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const geminiReply = response.text(); // นี่คือคำตอบที่ฉลาดจาก Gemini
+
+    // 5. บันทึกคำตอบจาก Gemini ลง Supabase
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        user_id: event.source.userId,
+        message_id: event.message.id,
+        type: event.message.type,
+        content: userMessage,
+        reply_token: event.replyToken,
+        reply_content: geminiReply, // บันทึกคำตอบจาก Gemini
+      });
+
+    if (error) {
+      console.error("Error inserting message to Supabase:", error);
+    }
+
+    // 6. ส่งคำตอบจาก Gemini กลับไปหาผู้ใช้
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: geminiReply,
+    });
+
+  } catch (err) {
+    console.error("Error communicating with Gemini or LINE:", err);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'ขออภัย, ตอนนี้ AI กำลังประมวลผลผิดพลาดเล็กน้อย ลองอีกครั้งนะ',
+    });
+  }
+}
+
+
+app.get('/', (req, res) => {
+  res.send('hello world, Suphachai');
+});
+
+const PORT = process.env.PORT || 3010;
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});
